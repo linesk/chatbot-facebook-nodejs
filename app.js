@@ -1,6 +1,6 @@
 'use strict';
 
-const apiai = require('apiai');
+const dialogflow = require('dialogflow');
 const config = require('./config');
 const express = require('express');
 const crypto = require('crypto');
@@ -17,8 +17,17 @@ if (!config.FB_PAGE_TOKEN) {
 if (!config.FB_VERIFY_TOKEN) {
 	throw new Error('missing FB_VERIFY_TOKEN');
 }
-if (!config.API_AI_CLIENT_ACCESS_TOKEN) {
-	throw new Error('missing API_AI_CLIENT_ACCESS_TOKEN');
+if (!config.GOOGLE_PROJECT_ID) {
+	throw new Error('missing GOOGLE_PROJECT_ID');
+}
+if (!config.DF_LANGUAGE_CODE) {
+	throw new Error('missing DF_LANGUAGE_CODE');
+}
+if (!config.GOOGLE_CLIENT_EMAIL) {
+	throw new Error('missing GOOGLE_CLIENT_EMAIL');
+}
+if (!config.GOOGLE_PRIVATE_KEY) {
+	throw new Error('missing GOOGLE_PRIVATE_KEY');
 }
 if (!config.FB_APP_SECRET) {
 	throw new Error('missing FB_APP_SECRET');
@@ -42,18 +51,29 @@ app.use(express.static('public'));
 // Process application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({
 	extended: false
-}))
+}));
 
 // Process application/json
-app.use(bodyParser.json())
+app.use(bodyParser.json());
 
 
 
 
-const apiAiService = apiai(config.API_AI_CLIENT_ACCESS_TOKEN, {
-	language: "en",
-	requestSource: "fb"
-});
+
+
+const credentials = {
+    client_email: config.GOOGLE_CLIENT_EMAIL,
+    private_key: config.GOOGLE_PRIVATE_KEY,
+};
+
+const sessionClient = new dialogflow.SessionsClient(
+	{
+		projectId: config.GOOGLE_PROJECT_ID,
+		credentials
+	}
+);
+
+
 const sessionIds = new Map();
 
 // Index route
@@ -157,7 +177,7 @@ function receivedMessage(event) {
 
 	if (messageText) {
 		//send message to api.ai
-		sendToApiAi(senderID, messageText);
+		sendToDialogFlow(senderID, messageText);
 	} else if (messageAttachments) {
 		handleMessageAttachments(messageAttachments, senderID);
 	}
@@ -173,7 +193,7 @@ function handleQuickReply(senderID, quickReply, messageId) {
 	var quickReplyPayload = quickReply.payload;
 	console.log("Quick reply for message %s with payload %s", messageId, quickReplyPayload);
 	//send payload to api.ai
-	sendToApiAi(senderID, quickReplyPayload);
+	sendToDialogFlow(senderID, quickReplyPayload);
 }
 
 //https://developers.facebook.com/docs/messenger-platform/webhook-reference/message-echo
@@ -182,49 +202,40 @@ function handleEcho(messageId, appId, metadata) {
 	console.log("Received echo for message %s and app %d with metadata %s", messageId, appId, metadata);
 }
 
-function handleApiAiAction(sender, action, responseText, contexts, parameters) {
+function handleDialogFlowAction(sender, action, messages, contexts, parameters) {
 	switch (action) {
 		default:
 			//unhandled action, just send back the text
-			sendTextMessage(sender, responseText);
+            handleMessages(messages, sender);
 	}
 }
 
 function handleMessage(message, sender) {
-	switch (message.type) {
-		case 0: //text
-			sendTextMessage(sender, message.speech);
-			break;
-		case 2: //quick replies
-			let replies = [];
-			for (var b = 0; b < message.replies.length; b++) {
-				let reply =
-				{
-					"content_type": "text",
-					"title": message.replies[b],
-					"payload": message.replies[b]
-				}
-				replies.push(reply);
-			}
-			sendQuickReply(sender, message.title, replies);
-			break;
-		case 3: //image
-			sendImageMessage(sender, message.imageUrl);
-			break;
-		case 4:
-			// custom payload
-			var messageData = {
-				recipient: {
-					id: sender
-				},
-				message: message.payload.facebook
-
-			};
-
-			callSendAPI(messageData);
-
-			break;
-	}
+    switch (message.message) {
+        case "text": //text
+            message.text.text.forEach((text) => {
+                if (text !== '') {
+                    sendTextMessage(sender, text);
+                }
+            });
+            break;
+        case "quickReplies": //quick replies
+            let replies = [];
+            message.quickReplies.quickReplies.forEach((text) => {
+                let reply =
+                    {
+                        "content_type": "text",
+                        "title": text,
+                        "payload": text
+                    }
+                replies.push(reply);
+            });
+            sendQuickReply(sender, message.quickReplies.title, replies);
+            break;
+        case "image": //image
+            sendImageMessage(sender, message.image.imageUri);
+            break;
+    }
 }
 
 
@@ -234,30 +245,30 @@ function handleCardMessages(messages, sender) {
 	for (var m = 0; m < messages.length; m++) {
 		let message = messages[m];
 		let buttons = [];
-		for (var b = 0; b < message.buttons.length; b++) {
-			let isLink = (message.buttons[b].postback.substring(0, 4) === 'http');
-			let button;
-			if (isLink) {
-				button = {
-					"type": "web_url",
-					"title": message.buttons[b].text,
-					"url": message.buttons[b].postback
-				}
-			} else {
-				button = {
-					"type": "postback",
-					"title": message.buttons[b].text,
-					"payload": message.buttons[b].postback
-				}
-			}
-			buttons.push(button);
-		}
+        for (var b = 0; b < message.card.buttons.length; b++) {
+            let isLink = (message.card.buttons[b].postback.substring(0, 4) === 'http');
+            let button;
+            if (isLink) {
+                button = {
+                    "type": "web_url",
+                    "title": message.card.buttons[b].text,
+                    "url": message.card.buttons[b].postback
+                }
+            } else {
+                button = {
+                    "type": "postback",
+                    "title": message.card.buttons[b].text,
+                    "payload": message.card.buttons[b].postback
+                }
+            }
+            buttons.push(button);
+        }
 
 
 		let element = {
-			"title": message.title,
-			"image_url":message.imageUrl,
-			"subtitle": message.subtitle,
+            "title": message.card.title,
+            "image_url":message.card.imageUri,
+            "subtitle": message.card.subtitle,
 			"buttons": buttons
 		};
 		elements.push(element);
@@ -266,79 +277,92 @@ function handleCardMessages(messages, sender) {
 }
 
 
-function handleApiAiResponse(sender, response) {
-	let responseText = response.result.fulfillment.speech;
-	let responseData = response.result.fulfillment.data;
-	let messages = response.result.fulfillment.messages;
-	let action = response.result.action;
-	let contexts = response.result.contexts;
-	let parameters = response.result.parameters;
+function handleMessages(messages, sender) {
+    let timeoutInterval = 1100;
+    let previousType ;
+    let cardTypes = [];
+    let timeout = 0;
+    for (var i = 0; i < messages.length; i++) {
+
+        if ( previousType == "card" && (messages[i].message != "card" || i == messages.length - 1)) {
+            timeout = (i - 1) * timeoutInterval;
+            setTimeout(handleCardMessages.bind(null, cardTypes, sender), timeout);
+            cardTypes = [];
+            timeout = i * timeoutInterval;
+            setTimeout(handleMessage.bind(null, messages[i], sender), timeout);
+        } else if ( messages[i].message == "card" && i == messages.length - 1) {
+            cardTypes.push(messages[i]);
+            timeout = (i - 1) * timeoutInterval;
+            setTimeout(handleCardMessages.bind(null, cardTypes, sender), timeout);
+            cardTypes = [];
+        } else if ( messages[i].message == "card") {
+            cardTypes.push(messages[i]);
+        } else  {
+
+            timeout = i * timeoutInterval;
+            setTimeout(handleMessage.bind(null, messages[i], sender), timeout);
+        }
+
+        previousType = messages[i].message;
+
+    }
+}
+
+function handleDialogFlowResponse(sender, response) {
+    let responseText = response.fulfillmentMessages.fulfillmentText;
+
+    let messages = response.fulfillmentMessages;
+    let action = response.action;
+    let contexts = response.outputContexts;
+    let parameters = response.parameters;
 
 	sendTypingOff(sender);
 
-	if (isDefined(messages) && (messages.length == 1 && messages[0].type != 0 || messages.length > 1)) {
-		let timeoutInterval = 1100;
-		let previousType ;
-		let cardTypes = [];
-		let timeout = 0;
-		for (var i = 0; i < messages.length; i++) {
-
-			if ( previousType == 1 && (messages[i].type != 1 || i == messages.length - 1)) {
-
-				timeout = (i - 1) * timeoutInterval;
-				setTimeout(handleCardMessages.bind(null, cardTypes, sender), timeout);
-				cardTypes = [];
-				timeout = i * timeoutInterval;
-				setTimeout(handleMessage.bind(null, messages[i], sender), timeout);
-			} else if ( messages[i].type == 1 && i == messages.length - 1) {
-				cardTypes.push(messages[i]);
-                		timeout = (i - 1) * timeoutInterval;
-                		setTimeout(handleCardMessages.bind(null, cardTypes, sender), timeout);
-                		cardTypes = [];
-			} else if ( messages[i].type == 1 ) {
-				cardTypes.push(messages[i]);
-			} else {
-				timeout = i * timeoutInterval;
-				setTimeout(handleMessage.bind(null, messages[i], sender), timeout);
-			}
-
-			previousType = messages[i].type;
-
-		}
+    if (isDefined(action)) {
+        handleDialogFlowAction(sender, action, messages, contexts, parameters);
+    } else if (isDefined(messages)) {
+        handleMessages(messages, sender);
 	} else if (responseText == '' && !isDefined(action)) {
-		//api ai could not evaluate input.
-		console.log('Unknown query' + response.result.resolvedQuery);
+		//dialogflow could not evaluate input.
 		sendTextMessage(sender, "I'm not sure what you want. Can you be more specific?");
-	} else if (isDefined(action)) {
-		handleApiAiAction(sender, action, responseText, contexts, parameters);
-	} else if (isDefined(responseData) && isDefined(responseData.facebook)) {
-		try {
-			console.log('Response as formatted message' + responseData.facebook);
-			sendTextMessage(sender, responseData.facebook);
-		} catch (err) {
-			sendTextMessage(sender, err.message);
-		}
 	} else if (isDefined(responseText)) {
-
 		sendTextMessage(sender, responseText);
 	}
 }
 
-function sendToApiAi(sender, text) {
+async function sendToDialogFlow(sender, textString, params) {
 
-	sendTypingOn(sender);
-	let apiaiRequest = apiAiService.textRequest(text, {
-		sessionId: sessionIds.get(sender)
-	});
+    sendTypingOn(sender);
 
-	apiaiRequest.on('response', (response) => {
-		if (isDefined(response.result)) {
-			handleApiAiResponse(sender, response);
-		}
-	});
+    try {
+        const sessionPath = sessionClient.sessionPath(
+            config.GOOGLE_PROJECT_ID,
+            sessionIds.get(sender)
+        );
 
-	apiaiRequest.on('error', (error) => console.error(error));
-	apiaiRequest.end();
+        const request = {
+            session: sessionPath,
+            queryInput: {
+                text: {
+                    text: textString,
+                    languageCode: config.DF_LANGUAGE_CODE,
+                },
+            },
+            queryParams: {
+                payload: {
+                    data: params
+                }
+            }
+        };
+        const responses = await sessionClient.detectIntent(request);
+
+        const result = responses[0].queryResult;
+        handleDialogFlowResponse(sender, result);
+    } catch (e) {
+        console.log('error');
+        console.log(e);
+    }
+
 }
 
 
