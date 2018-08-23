@@ -1,6 +1,4 @@
 'use strict';
-export GOOGLE_APPLICATION_CREDENTIALS = "nl1quiz-1b672-f87c6fc66011.json"
-
 
 const dialogflow = require('dialogflow');
 const config = require('./config');
