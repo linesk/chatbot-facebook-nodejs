@@ -202,13 +202,56 @@ function handleEcho(messageId, appId, metadata) {
 	console.log("Received echo for message %s and app %d with metadata %s", messageId, appId, metadata);
 }
 
-function handleDialogFlowAction(sender, action, messages, contexts, parameters) {
+function handleDialogFlowAction(sender, action, messages, contexts, parameters, allRequiredParamsPresent) {
 	switch (action) {
+		case "wanted-university":
+			if (allRequiredParamsPresent) {
+				let job = (isDefined(parameters.fields['Job'].stringValue) && parameters.fields['Job'].stringValue != '') ? parameters.fields['Job'].stringValue : '';
+				let university = (isDefined(parameters.fields['University'].stringValue) && parameters.fields['University'].stringValue != '') ? parameters.fields['University'].stringValue : '';
+				let age = (isDefined(parameters.fields['age']) && parameters.fields['age'] != '') ? parameters.fields['age'].parseInt();
+				let email_to = (isDefined(parameters.fields['mail'].stringValue) && parameters.fields['mail'].stringValue != '') ? parameters.fields['mail'].stringValue : '';
+				console.log('job: ' + job + ', university: ' + university+ ', age: ' + age +', email: ' + email_to);
+				if (job != '' && university != '' && age != '' && email_to != ''){
+
+					let title = 'ขอความช่วยเหลือยากสอบเข้ามหาวิทยาลัย';
+					let emailContent = "สวัสดีครับ ผมเป็นนักเรียนชั้น ม.ปลาย อยากสอบเข้า" + job +" "+ university +
+					"<br> ตอนนี้ ผมอายุ " + age + " ปี แล้วครับ";
+					console.log('title: ' + title);
+					console.log('Content: ' + emailContent);
+					sendEmail(title, emailContent, email_to);
+				}
+			}
+
 		default:
 			//unhandled action, just send back the text
-            handleMessages(messages, sender);
+			handleMessages(messages, sender);
 	}
 }
+
+function sendEmail(subject, content, email_to) {
+     console.log('sending email');
+     var helper = require('sendgrid').mail;
+
+     var from_email = new helper.Email(config.EMAIL_FROM);
+     var to_email = new helper.Email(email_to);
+     var subject = subject;
+     var content = new helper.Content("text/html", content);
+     var mail = new helper.Mail(from_email, subject, to_email, content);
+
+     var sg = require('sendgrid')(config.SENGRID_API_KEY);
+     var request = sg.emptyRequest({
+         method: 'POST',
+         path: '/v3/mail/send',
+         body: mail.toJSON()
+     });
+
+     sg.API(request, function(error, response) {
+         console.log(response.statusCode)
+         console.log(response.body)
+         console.log(response.headers)
+     })
+		 console.log('sended email');
+ }
 
 function handleMessage(message, sender) {
     switch (message.message) {
