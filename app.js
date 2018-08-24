@@ -29,6 +29,9 @@ if (!config.GOOGLE_CLIENT_EMAIL) {
 if (!config.GOOGLE_PRIVATE_KEY) {
 	throw new Error('missing GOOGLE_PRIVATE_KEY');
 }
+if (!config.SENDGRID_API_KEY) {
+	throw new Error('missing SENDGRID_API_KEY');
+}
 if (!config.FB_APP_SECRET) {
 	throw new Error('missing FB_APP_SECRET');
 }
@@ -78,7 +81,7 @@ const sessionIds = new Map();
 
 // Index route
 app.get('/', function (req, res) {
-	res.send('Hello world, I am a chat bot, help me :)')
+	res.send('Hello world, I am a chat bot, help me found some IDEA ')
 })
 
 // for Facebook verification
@@ -153,8 +156,8 @@ function receivedMessage(event) {
 	if (!sessionIds.has(senderID)) {
 		sessionIds.set(senderID, uuid.v1());
 	}
-	console.log("Received message for user %d and page %d at %d with message:", senderID, recipientID, timeOfMessage);
-	console.log(JSON.stringify(message));
+	//console.log("Received message for user %d and page %d at %d with message:", senderID, recipientID, timeOfMessage);
+	//console.log(JSON.stringify(message));
 
 	var isEcho = message.is_echo;
 	var messageId = message.mid;
@@ -208,9 +211,9 @@ function handleDialogFlowAction(sender, action, messages, contexts, parameters, 
 			if (allRequiredParamsPresent) {
 				let job = (isDefined(parameters.fields['Job'].stringValue) && parameters.fields['Job'].stringValue != '') ? parameters.fields['Job'].stringValue : '';
 				let university = (isDefined(parameters.fields['University'].stringValue) && parameters.fields['University'].stringValue != '') ? parameters.fields['University'].stringValue : '';
-				let age = (isDefined(parameters.fields['age'].stringValue) && parameters.fields['age'].stringValue != '') ? parameters.fields['age'].stringValue;
+				let age = (isDefined(parameters.fields['age'].stringValue) && parameters.fields['age'].stringValue != '') ? parameters.fields['age'].stringValue : '';
 				let email_to = (isDefined(parameters.fields['mail'].stringValue) && parameters.fields['mail'].stringValue != '') ? parameters.fields['mail'].stringValue : '';
-				console.log('job: ' + job + ', university: ' + university+ ', age: ' + age +', email: ' + email_to);
+
 				if (job != '' && university != '' && age != '' && email_to != ''){
 
 					let title = 'ขอความช่วยเหลือยากสอบเข้ามหาวิทยาลัย';
@@ -353,7 +356,7 @@ function handleMessages(messages, sender) {
 
 function handleDialogFlowResponse(sender, response) {
     let responseText = response.fulfillmentMessages.fulfillmentText;
-
+		let allRequiredParamsPresent = isDefined(response.allRequiredParamsPresent);
     let messages = response.fulfillmentMessages;
     let action = response.action;
     let contexts = response.outputContexts;
@@ -362,7 +365,7 @@ function handleDialogFlowResponse(sender, response) {
 	sendTypingOff(sender);
 
     if (isDefined(action)) {
-        handleDialogFlowAction(sender, action, messages, contexts, parameters);
+        handleDialogFlowAction(sender, action, messages, contexts, parameters, allRequiredParamsPresent);
     } else if (isDefined(messages)) {
         handleMessages(messages, sender);
 	} else if (responseText == '' && !isDefined(action)) {
