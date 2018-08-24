@@ -209,14 +209,15 @@ function handleDialogFlowAction(sender, action, messages, contexts, parameters, 
 	switch (action) {
 		case "wanted-university":
 			if (allRequiredParamsPresent) {
-				let job = parameters.Job;
-				let university = parameters.University;
-				let age = parameters.age;
-				let email_to = parameters.mail;
+				let job = (isDefined(parameters.fields['Job'].stringValue) && parameters.fields['Job'].stringValue != '') ? parameters.fields['Job'].stringValue : '';
+				let university = (isDefined(parameters.fields['University'].stringValue) && parameters.fields['University'].stringValue != '') ? parameters.fields['University'].stringValue : '';
+				let age = (isDefined(parameters.fields['age'].stringValue) && parameters.fields['age'].stringValue != '') ? parameters.fields['age'].stringValue : '';
+				let email_to = (isDefined(parameters.fields['mail'].stringValue) && parameters.fields['mail'].stringValue != '') ? parameters.fields['mail'].stringValue : '';
+				console.log('job: ' + job + ', university: ' + university+ ', age: ' + age +', email: ' + email_to);
 				if (job != '' && university != '' && age != '' && email_to != ''){
 
-					let title = 'ขอความช่วยเหลือยากสอบเข้ามหาวทยาลัย';
-					let emailContent = "สวัสดีครับ ผมเป็นนักเรียนชั้น ม.ปลาย อยากสอบเข้า" + job +" "+ university
+					let title = 'ขอความช่วยเหลือยากสอบเข้ามหาวิทยาลัย';
+					let emailContent = "สวัสดีครับ ผมเป็นนักเรียนชั้น ม.ปลาย อยากสอบเข้า" + job +" "+ university +
 					"<br> ตอนนี้ ผมอายุ " + age + " ปี แล้วครับ";
 					console.log('title: ' + title);
 					console.log('Content: ' + emailContent);
@@ -252,6 +253,7 @@ function sendEmail(subject, content, email_to) {
          console.log(response.body)
          console.log(response.headers)
      })
+		 console.log('sended email');
  }
 
 function handleMessage(message, sender) {
@@ -354,7 +356,7 @@ function handleMessages(messages, sender) {
 
 function handleDialogFlowResponse(sender, response) {
     let responseText = response.fulfillmentMessages.fulfillmentText;
-		let allRequiredParamsPresent = response.allRequiredParamsPresent;
+		let allRequiredParamsPresent = isDefined(response.allRequiredParamsPresent);
     let messages = response.fulfillmentMessages;
     let action = response.action;
     let contexts = response.outputContexts;
