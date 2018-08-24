@@ -29,6 +29,9 @@ if (!config.GOOGLE_CLIENT_EMAIL) {
 if (!config.GOOGLE_PRIVATE_KEY) {
 	throw new Error('missing GOOGLE_PRIVATE_KEY');
 }
+if (!config.SENDGRID_API_KEY) {
+	throw new Error('missing SENDGRID_API_KEY');
+}
 if (!config.FB_APP_SECRET) {
 	throw new Error('missing FB_APP_SECRET');
 }
@@ -78,7 +81,7 @@ const sessionIds = new Map();
 
 // Index route
 app.get('/', function (req, res) {
-	res.send('Hello world, I am a chat bot, help me :)')
+	res.send('Hello world, I am a chat bot, help me found some IDEA ')
 })
 
 // for Facebook verification
@@ -153,8 +156,8 @@ function receivedMessage(event) {
 	if (!sessionIds.has(senderID)) {
 		sessionIds.set(senderID, uuid.v1());
 	}
-	console.log("Received message for user %d and page %d at %d with message:", senderID, recipientID, timeOfMessage);
-	console.log(JSON.stringify(message));
+	//console.log("Received message for user %d and page %d at %d with message:", senderID, recipientID, timeOfMessage);
+	//console.log(JSON.stringify(message));
 
 	var isEcho = message.is_echo;
 	var messageId = message.mid;
@@ -202,13 +205,55 @@ function handleEcho(messageId, appId, metadata) {
 	console.log("Received echo for message %s and app %d with metadata %s", messageId, appId, metadata);
 }
 
-function handleDialogFlowAction(sender, action, messages, contexts, parameters) {
+function handleDialogFlowAction(sender, action, messages, contexts, parameters, allRequiredParamsPresent) {
 	switch (action) {
+		case "wanted-university":
+			if (allRequiredParamsPresent) {
+				let job = parameters.field("Job");
+				let university = parameters.field("University");
+				let age = parameters.field("age");
+				let email_to = parameters.field("mail")
+				if (job != '' && university != '' && age != '' && email_to != ''){
+
+					let title = 'ขอความช่วยเหลือยากสอบเข้ามหาวทยาลัย';
+					let emailContent = "สวัสดีครับ ผมเป็นนักเรียนชั้น ม.ปลาย อยากสอบเข้า" + job +" "+ university
+					"<br> ตอนนี้ ผมอายุ " + age + " ปี แล้วครับ";
+
+					sendEmail(title,emailContent,email_to);
+				}
+			} else {
+				handleMessages(messages, sender);
+			}
+
 		default:
 			//unhandled action, just send back the text
-            handleMessages(messages, sender);
+			handleMessages(messages, sender);
 	}
 }
+
+function sendEmail(subject, content, email_to) {
+     console.log('sending email');
+     var helper = require('sendgrid').mail;
+
+     var from_email = new helper.Email(config.EMAIL_FROM);
+     var to_email = new helper.Email(email_to);
+     var subject = subject;
+     var content = new helper.Content("text/html", content);
+     var mail = new helper.Mail(from_email, subject, to_email, content);
+
+     var sg = require('sendgrid')(config.SENGRID_API_KEY);
+     var request = sg.emptyRequest({
+         method: 'POST',
+         path: '/v3/mail/send',
+         body: mail.toJSON()
+     });
+
+     sg.API(request, function(error, response) {
+         console.log(response.statusCode)
+         console.log(response.body)
+         console.log(response.headers)
+     })
+ }
 
 function handleMessage(message, sender) {
     switch (message.message) {
@@ -310,7 +355,7 @@ function handleMessages(messages, sender) {
 
 function handleDialogFlowResponse(sender, response) {
     let responseText = response.fulfillmentMessages.fulfillmentText;
-
+		let allRequiredParamsPresent = response.allRequiredParamsPresent;
     let messages = response.fulfillmentMessages;
     let action = response.action;
     let contexts = response.outputContexts;
@@ -319,7 +364,7 @@ function handleDialogFlowResponse(sender, response) {
 	sendTypingOff(sender);
 
     if (isDefined(action)) {
-        handleDialogFlowAction(sender, action, messages, contexts, parameters);
+        handleDialogFlowAction(sender, action, messages, contexts, parameters, allRequiredParamsPresent);
     } else if (isDefined(messages)) {
         handleMessages(messages, sender);
 	} else if (responseText == '' && !isDefined(action)) {
