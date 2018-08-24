@@ -211,7 +211,7 @@ function handleDialogFlowAction(sender, action, messages, contexts, parameters, 
 			if (allRequiredParamsPresent) {
 				let job = (isDefined(parameters.fields['Job'].stringValue) && parameters.fields['Job'].stringValue != '') ? parameters.fields['Job'].stringValue : '';
 				let university = (isDefined(parameters.fields['University'].stringValue) && parameters.fields['University'].stringValue != '') ? parameters.fields['University'].stringValue : '';
-				let age = (isDefined(parameters.fields['age'].stringValue) && parameters.fields['age'].stringValue != '') ? parameters.fields['age'].stringValue : '';
+				let age = (isDefined(parameters.fields['age'].stringValue) && parameters.fields['age'].stringValue != '') ? parameters.fields['age'] : '';
 				let email_to = (isDefined(parameters.fields['mail'].stringValue) && parameters.fields['mail'].stringValue != '') ? parameters.fields['mail'].stringValue : '';
 				console.log('job: ' + job + ', university: ' + university+ ', age: ' + age +', email: ' + email_to);
 				if (job != '' && university != '' && age != '' && email_to != ''){
