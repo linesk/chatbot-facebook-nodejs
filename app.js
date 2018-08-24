@@ -209,20 +209,19 @@ function handleDialogFlowAction(sender, action, messages, contexts, parameters, 
 	switch (action) {
 		case "wanted-university":
 			if (allRequiredParamsPresent) {
-				let job = parameters.field("Job");
-				let university = parameters.field("University");
-				let age = parameters.field("age");
-				let email_to = parameters.field("mail")
+				let job = parameters.Job;
+				let university = parameters.University;
+				let age = parameters.age;
+				let email_to = parameters.mail;
 				if (job != '' && university != '' && age != '' && email_to != ''){
 
 					let title = 'ขอความช่วยเหลือยากสอบเข้ามหาวทยาลัย';
 					let emailContent = "สวัสดีครับ ผมเป็นนักเรียนชั้น ม.ปลาย อยากสอบเข้า" + job +" "+ university
 					"<br> ตอนนี้ ผมอายุ " + age + " ปี แล้วครับ";
-
-					sendEmail(title,emailContent,email_to);
+					console.log('title: ' + title);
+					console.log('Content: ' + emailContent);
+					sendEmail(title, emailContent, email_to);
 				}
-			} else {
-				handleMessages(messages, sender);
 			}
 
 		default:
