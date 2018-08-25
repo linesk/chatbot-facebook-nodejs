@@ -224,7 +224,6 @@ function handleDialogFlowAction(sender, action, messages, contexts, parameters, 
 					sendEmail(title, emailContent, email_to);
 				}
 			}
-			break;
 		default:
 			//unhandled action, just send back the text
 			handleMessages(messages, sender);
