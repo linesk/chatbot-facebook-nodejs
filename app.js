@@ -234,13 +234,13 @@ function sendEmail(subject_in, content_in, email_to) {
      console.log('sending email');
 		 var helper = require('sendgrid').mail;
 
-		 var from_email = new helper.Email('test@example.com');
+		 var from_email = new helper.Email(config.EMAIL_FROM);
 		 var to_email = new helper.Email(email_to);
 		 var subjects = subject_in;
 		 var contents = new helper.Content('text/plain', content_in);
 		 var mail = new helper.Mail(from_email, subjects, to_email, contents);
 
-		 var sg = require('sendgrid')(process.env.SENDGRID_API_KEY);
+		 var sg = require('sendgrid')(config.SENDGRID_API_KEY);
 		 var request = sg.emptyRequest(
 			 {
 				 method: 'POST',
