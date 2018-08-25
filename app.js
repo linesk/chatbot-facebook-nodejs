@@ -224,36 +224,37 @@ function handleDialogFlowAction(sender, action, messages, contexts, parameters, 
 					sendEmail(title, emailContent, email_to);
 				}
 			}
-
+			break;
 		default:
 			//unhandled action, just send back the text
 			handleMessages(messages, sender);
 	}
 }
 
-function sendEmail(subject, content, email_to) {
+function sendEmail(subject_in, content_in, email_to) {
      console.log('sending email');
-     var helper = require('sendgrid').mail;
+		 var helper = require('sendgrid').mail;
 
-     var from_email = new helper.Email(config.EMAIL_FROM);
-     var to_email = new helper.Email(email_to);
-     var subject = subject;
-     var content = new helper.Content("text/html", content);
-     var mail = new helper.Mail(from_email, subject, to_email, content);
+		 var from_email = new helper.Email('test@example.com');
+		 var to_email = new helper.Email(email_to);
+		 var subjects = subject_in;
+		 var contents = new helper.Content('text/plain', content_in);
+		 var mail = new helper.Mail(from_email, subjects, to_email, contents);
 
-     var sg = require('sendgrid')(config.SENGRID_API_KEY);
-     var request = sg.emptyRequest({
-         method: 'POST',
-         path: '/v3/mail/send',
-         body: mail.toJSON()
-     });
+		 var sg = require('sendgrid')(process.env.SENDGRID_API_KEY);
+		 var request = sg.emptyRequest(
+			 {
+				 method: 'POST',
+				 path: '/v3/mail/send',
+				 body: mail.toJSON(),
+			 });
+			 sg.API(request, function(error, response) {
+				 console.log(response.statusCode);
+				 console.log(response.body);
+				 console.log(response.headers);
+			 }
+		 );
 
-     sg.API(request, function(error, response) {
-         console.log(response.statusCode)
-         console.log(response.body)
-         console.log(response.headers)
-     })
-		 console.log('sended email');
  }
 
 function handleMessage(message, sender) {
